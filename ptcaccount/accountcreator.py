@@ -1,6 +1,7 @@
 from six.moves import range
 import random
 import string
+from retrying import retry
 # urllib imports supporting Python 2 and 3
 try:
     # Python 3
@@ -52,7 +53,7 @@ class PTCSession(requests.Session):
     A likely unnecessary subclass of requests.Session, but I thought it
     helped to clean up the code.
     """
-
+   
     def request(self, url, headers=None, data=None, resp_code=None, **kwargs):
         """
         Creates, sends, and validates a request for this session.
@@ -105,6 +106,8 @@ class PTCSession(requests.Session):
         # Return the Response object
         return resp
 
+def _is_server_500_error(exception):
+    return isinstance(exception, PTCInvalidStatusCodeException)
 
 def _random_string(length=15):
     """Generate a random alpha-numeric string of the given length
@@ -186,7 +189,7 @@ def _tag_email(email_address, tag):
     """
     return email_address.replace('@', '+{}@'.format(tag), 1)
 
-
+@retry(retry_on_exception=_is_server_500_error, stop_max_attempt_number=1)
 def create_account(username, password, email):
     """Creates a new Pokemon Trainer Club account
 
